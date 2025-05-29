@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta DNI Perú</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #resultado { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }
+        .error { color: red; font-weight: bold; }
+        .loading { font-style: italic; color: #555; }
+        label { display: block; margin-bottom: 5px;}
+        input[type="text"] { padding: 8px; margin-bottom: 10px; width: 200px; }
+        button { padding: 10px 15px; cursor: pointer; }
+        pre { background-color: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word;}
+    </style>
+</head>
+<body>
+
+    <h1>Consultar Datos por DNI (Perú)</h1>
+
+    <form id="dniForm">
+        <label for="dni">Número de DNI:</label>
+        <input type="text" id="dni" name="dni" pattern="\d{8}" title="El DNI debe tener 8 dígitos" required maxlength="8">
+        <button type="submit">Consultar</button>
+    </form>
+
+    <div id="resultado">
+        Esperando consulta...
+    </div>
+
+    <script>
+        // Seleccionar el formulario y el div de resultados
+        const dniForm = document.getElementById('dniForm');
+        const resultadoDiv = document.getElementById('resultado');
+
+        // Añadir un 'escuchador' para el evento 'submit' del formulario
+        dniForm.addEventListener('submit', async (event) => {
+            // Prevenir el comportamiento por defecto del formulario (recargar la página)
+            event.preventDefault();
+
+            // Obtener el número de DNI ingresado
+            const dni = document.getElementById('dni').value;
+
+            // Validar que el DNI tenga 8 dígitos (aunque el pattern HTML ya ayuda)
+            if (!/^\d{8}$/.test(dni)) {
+                resultadoDiv.innerHTML = '<p class="error">Por favor, ingrese un DNI válido de 8 dígitos.</p>';
+                return;
+            }
+
+            // Mostrar mensaje de "Cargando..."
+            resultadoDiv.innerHTML = '<p class="loading">Consultando...</p>';
+
+            try {
+                // Enviar la solicitud POST a nuestro backend Flask (/consultar-dni)
+                const response = await fetch('/consultar-dni', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json', // Indicamos que enviamos JSON
+                    },
+                    body: JSON.stringify({ dni: dni }) // Convertimos el DNI a formato JSON
+                });
+
+                // Convertir la respuesta del backend a JSON
+                const data = await response.json();
+
+                // Verificar si la respuesta del backend indica un error
+                if (!response.ok || data.error) {
+                   // Si hay un error conocido (devuelto como JSON por Flask) o la respuesta HTTP no fue OK
+                   const errorMessage = data.error || `Error ${response.status}: ${response.statusText}`;
+                   const errorDetail = data.detalle ? `<br><small>${data.detalle}</small>` : ''; // Mostrar detalle si existe
+                   resultadoDiv.innerHTML = `<p class="error">Error al consultar: ${errorMessage}${errorDetail}</p>`;
+                } else {
+                    // Si la consulta fue exitosa, mostrar los datos formateados
+                    // Usamos <pre> para mantener el formato JSON y que sea fácil de leer
+                    resultadoDiv.innerHTML = `
+                        <h2>Datos Encontrados:</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    // Alternativamente, podrías mostrar campos específicos:
+                    // resultadoDiv.innerHTML = `
+                    //     <h2>Datos Encontrados:</h2>
+                    //     <p><strong>DNI:</strong> ${data.numeroDocumento || 'No disponible'}</p>
+                    //     <p><strong>Nombres:</strong> ${data.nombres || 'No disponible'}</p>
+                    //     <p><strong>Apellido Paterno:</strong> ${data.apellidoPaterno || 'No disponible'}</p>
+                    //     <p><strong>Apellido Materno:</strong> ${data.apellidoMaterno || 'No disponible'}</p>
+                    //     // `;
+                }
+
+            } catch (error) {
+                // Capturar errores de red o problemas al procesar la solicitud/respuesta
+                console.error('Error en la solicitud fetch:', error);
+                resultadoDiv.innerHTML = `<p class="error">No se pudo conectar con el servidor o procesar la solicitud. Verifica la consola para más detalles.</p>`;
+            }
+        });
+    </script>
+
+</body>
+</html>
